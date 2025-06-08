@@ -13,19 +13,98 @@ The process follows these main steps:
 
 ## 1. Environment Setup
 
-Ensure you are on a CUDA-compatible machine with at least 16GB VRAM.
+This section provides guidance for setting up your environment on Ubuntu and Windows.
+**A CUDA-compatible GPU with at least 16GB VRAM is highly recommended for running the fine-tuning script.**
 
-Create a conda environment (or a virtualenv):
-```bash
-conda create -n mistral-qlora python=3.10 -y
-conda activate mistral-qlora
-```
+### General Setup (Applicable to both Ubuntu and Windows)
 
-Install necessary packages using the provided `requirements.txt`:
-```bash
-pip install -r requirements.txt
+1.  **Install Miniconda/Anaconda**:
+    *   Download and install Miniconda (recommended for a minimal installation) or Anaconda from [https://docs.conda.io/projects/miniconda/en/latest/](https://docs.conda.io/projects/miniconda/en/latest/) or [https://www.anaconda.com/products/distribution](https://www.anaconda.com/products/distribution). Follow the instructions for your operating system.
+
+2.  **Create a Conda Environment**:
+    Open a terminal (or Anaconda Prompt on Windows) and run:
+    ```bash
+    conda create -n mistral-qlora python=3.10 -y
+    conda activate mistral-qlora
+    ```
+
+### Ubuntu Setup Details
+
+1.  **NVIDIA CUDA Toolkit**:
+    *   Ensure you have NVIDIA drivers installed.
+    *   Install the NVIDIA CUDA Toolkit that matches the PyTorch CUDA version you intend to use (e.g., CUDA 11.8 or 12.1). It's often best to install this system-wide via NVIDIA's official repositories or installers.
+        *   Check PyTorch installation instructions for compatible CUDA versions: [https://pytorch.org/get-started/locally/](https://pytorch.org/get-started/locally/)
+        *   NVIDIA CUDA Toolkit Archive: [https://developer.nvidia.com/cuda-toolkit-archive](https://developer.nvidia.com/cuda-toolkit-archive)
+    *   Verify `nvcc --version` in your terminal.
+
+2.  **Install PyTorch**:
+    *   Visit [https://pytorch.org/get-started/locally/](https://pytorch.org/get-started/locally/) and select your preferences (e.g., Stable, Linux, Pip, Python, desired CUDA version).
+    *   Install PyTorch using the generated command. For example, for CUDA 12.1:
+        ```bash
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+        ```
+
+3.  **Install Other Dependencies**:
+    *   Install `build-essential` for compiling some packages if not already present:
+        ```bash
+        sudo apt-get update
+        sudo apt-get install build-essential
+        ```
+    *   Install the remaining packages from `requirements.txt`:
+        ```bash
+        pip install -r requirements.txt
+        ```
+        Note: `bitsandbytes` should compile smoothly on most Linux distributions with the necessary build tools.
+
+### Windows Setup Details
+
+1.  **NVIDIA CUDA Toolkit**:
+    *   Ensure you have NVIDIA drivers installed (Game Ready or Studio drivers).
+    *   Install the NVIDIA CUDA Toolkit. Download it from the NVIDIA website: [https://developer.nvidia.com/cuda-downloads](https://developer.nvidia.com/cuda-downloads). Choose the version compatible with the PyTorch version you plan to install.
+    *   During installation, it's recommended to use the "Express" setting or ensure that `nvcc` is added to your system's PATH.
+    *   Verify `nvcc --version` in Command Prompt or PowerShell.
+
+2.  **Microsoft Visual Studio (Build Tools)**:
+    *   Some Python packages, including `bitsandbytes`, may require C++ build tools for compilation on Windows.
+    *   Install "Build Tools for Visual Studio" from [https://visualstudio.microsoft.com/downloads/](https://visualstudio.microsoft.com/downloads/) (under "Tools for Visual Studio").
+    *   During installation, select "Desktop development with C++".
+
+3.  **Install PyTorch**:
+    *   Visit [https://pytorch.org/get-started/locally/](https://pytorch.org/get-started/locally/) and select your preferences (e.g., Stable, Windows, Pip, Python, desired CUDA version).
+    *   Install PyTorch using the generated command from an Anaconda Prompt or PowerShell (within your conda environment). For example, for CUDA 12.1:
+        ```bash
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+        ```
+
+4.  **Install `bitsandbytes` (Windows Specifics)**:
+    *   `bitsandbytes` has historically had some challenges with Windows. As of recent versions, pre-compiled Windows wheels might be available, or it might compile correctly if CUDA and Visual Studio Build Tools are set up properly.
+    *   Try installing directly:
+        ```bash
+        pip install bitsandbytes
+        ```
+    *   If you encounter issues, refer to the official `bitsandbytes` repository for Windows-specific instructions or precompiled binaries: [https://github.com/TimDettmers/bitsandbytes](https://github.com/TimDettmers/bitsandbytes) (check Issues and Releases). Sometimes specific versions are recommended, e.g., `pip install bitsandbytes==0.41.1` (check for the latest compatible version).
+
+5.  **Install Other Dependencies**:
+    *   Install the remaining packages from `requirements.txt`:
+        ```bash
+        pip install -r requirements.txt
+        ```
+
+### Verifying the Setup
+
+After installation, you can verify PyTorch and CUDA:
+```python
+import torch
+print(f"PyTorch version: {torch.__version__}")
+print(f"CUDA available: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    print(f"CUDA version: {torch.version.cuda}")
+    print(f"Current CUDA device: {torch.cuda.current_device()}")
+    print(f"Device name: {torch.cuda.get_device_name(torch.cuda.current_device())}")
 ```
-This includes PyTorch with CUDA support, bitsandbytes, transformers, datasets, peft, accelerate, sentencepiece, scipy, tqdm, trl, and PyMuPDF.
+Save this as a Python script (e.g., `check_env.py`) and run `python check_env.py`.
+
+This updated section provides more detailed, OS-specific instructions for setting up the Conda environment, installing CUDA, PyTorch, and other dependencies, including notes on potential issues like `bitsandbytes` on Windows.
 
 ## 2. PDF to Q&A Dataset
 
