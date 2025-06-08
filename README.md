@@ -124,7 +124,7 @@ The script will load this key automatically. Keep your `.env` file secure and do
 
 ## 2. PDF to Q&A Dataset
 
-The `pdf_to_qa.py` script extracts text from your PDF and uses the Google Gemini API to automatically generate question-answer pairs.
+The `pdf_to_qa.py` script extracts text from your PDF and uses the Google Gemini API to automatically generate **both detailed factual question-answer pairs and a few summarization-style Q&A pairs** for each text chunk.
 
 **Prerequisites**: Ensure you have set up your `GOOGLE_API_KEY` in a `.env` file as described in the "Environment Setup" section.
 
@@ -139,6 +139,7 @@ python pdf_to_qa.py --pdf_path your_doc.pdf --output_json qa_dataset.json --num_
 ```
 While the Gemini API provides a strong starting point, it's highly recommended to review and curate the generated Q&A pairs for quality and relevance. The script includes an enhanced retry mechanism with increasing backoff times to handle transient API issues, attempting up to 9 times before failing on a specific text chunk.
 The script uses a very detailed internal prompt to instruct Gemini to be as exhaustive and literal as possible in extracting factual Q&A pairs from each text chunk. While this aims for maximum detail, you can further refine this internal prompt (located in the `generate_qa_pairs` function within `pdf_to_qa.py`) if you have very specific Q&A style requirements or observe particular patterns in Gemini's output for your documents. Experimenting with `--num_questions_per_chunk` and `--max_chunk_chars` can also help optimize the results for your needs.
+Generating both types of Q&A pairs (factual and summarization) aims to create a richer dataset. This helps the fine-tuned model to not only recall specific details but also to provide summaries when explicitly prompted (e.g., 'Summarize the key points of section X').
 **Crucially, the quality, accuracy, and relevance of your Q&A pairs will significantly impact the fine-tuned model's performance.** Refer to the comments within `pdf_to_qa.py` for more detailed advice on dataset creation.
 
 ## 3. Prepare Dataset for Training
@@ -149,6 +150,11 @@ Use the `prepare_dataset.py` script to convert the `qa_dataset.json` into the fo
 python prepare_dataset.py --input_json qa_dataset.json --output_dir mistral_qa_dataset
 ```
 
+**Note for CVs/Specific Document Fine-tuning**: If your goal is for the model to learn the entire content of a specific document (like a CV), it's recommended to train on all generated Q&A pairs. You can achieve this by setting `--test_size 0` when running the script:
+```bash
+python prepare_dataset.py --input_json qa_dataset.json --output_dir mistral_qa_dataset --test_size 0
+```
+This ensures all extracted information is used for training, maximizing the model's knowledge of that specific document.
 This will create a directory named `mistral_qa_dataset` containing the processed dataset.
 
 ## 4. Fine-tune Mistral 7B with QLoRA

@@ -167,27 +167,38 @@ def generate_qa_pairs(text_content: str, num_questions_per_chunk: int = 5) -> li
         print(f"Processing chunk {i + 1}/{len(text_chunks)}...")
 
         # You can customize this prompt extensively.
-        # The num_questions_per_chunk is now more of a user guideline for how many questions THEY want to see,
-        # rather than a strict instruction to the LLM if we want it to be exhaustive.
-        # We will remove it from the direct prompt to the LLM for quantity.
+        # The num_questions_per_chunk parameter is a general guideline for the total output.
+        # The prompt below aims for exhaustive factual Q&A and then a few summaries.
         prompt = f"""
-Your primary task is to act as a meticulous data extractor. From the provided text chunk, you must generate an exhaustive list of detailed, factual question-answer pairs. These pairs are crucial for fine-tuning a large language model to answer highly specific questions about the original document.
+Your task is to generate two types of question-answer pairs from the provided text chunk:
+1.  **Detailed Factual Q&A Pairs**: Convert every distinct piece of factual information into a Q&A pair.
+2.  **Summarization Q&A Pairs**: Create 1-2 Q&A pairs where the question asks for a summary of the main topics or key aspects of the text chunk, and the answer is that summary.
 
-Key Instructions for Q&A Generation:
-1.  **Extract EVERY Fact**: Convert every distinct piece of factual information into a Q&A pair. This includes specific numbers, names, titles, dates, technical terms, tools, technologies, methodologies, specific responsibilities, individual achievements, project details, programming languages mentioned, software versions, etc. If it's a stated fact in the text, it should become a Q&A pair.
-2.  **Literal and Granular**: Be very literal. Do not summarize or generalize. If a sentence contains multiple facts, create multiple Q&A pairs. Prefer shorter, focused questions and answers that pinpoint specific details.
-3.  **Comprehensive Coverage**: Your goal is to leave no factual stone unturned within the provided text chunk. Generate as many Q&A pairs as there are distinct facts. Do not worry about generating too many; thoroughness is paramount.
-4.  **Clear Questions**: Formulate questions that are clear, unambiguous, and directly and uniquely answerable from the provided text chunk.
-5.  **Direct Answers**: Answers must be concise, accurate, and directly extracted or very closely inferred from the text.
-6.  **JSON Format**: Each Q&A pair must be a JSON object with exactly three keys:
+These pairs will be used for fine-tuning a large language model.
+
+**Instructions for Detailed Factual Q&A Generation:**
+*   **Extract EVERY Fact**: This includes specific numbers, names, titles, dates, technical terms, tools, technologies, methodologies, specific responsibilities, individual achievements, project details, programming languages mentioned, software versions, etc. If it's a stated fact in the text, try to make it a Q&A pair.
+*   **Literal and Granular**: Be very literal. Do not generalize. If a sentence contains multiple facts, create multiple Q&A pairs. Prefer shorter, focused questions and answers that pinpoint specific details.
+*   **Comprehensive Coverage**: Your goal is to leave no factual stone unturned within the provided text chunk for this type of Q&A. Generate as many factual Q&A pairs as there are distinct facts.
+
+**Instructions for Summarization Q&A Generation:**
+*   **Identify Main Themes**: Based on the text chunk, identify 1 or 2 main themes, topics, or sections that could be summarized.
+*   **Formulate Summary Question**: Create a question that asks for a summary of that theme/topic (e.g., "Can you summarize the key responsibilities mentioned in this section?", "What is the main focus of this paragraph regarding project X?").
+*   **Generate Concise Summary**: The answer should be a concise summary of that theme/topic, derived from the text chunk.
+
+**General Instructions for ALL Q&A Pairs:**
+*   **Clear Questions**: All questions should be clear, unambiguous, and directly answerable from the provided text.
+*   **Accurate Answers**: All answers must be accurate and directly extracted or inferred from the text. Factual answers should be concise; summary answers should capture the essence of the topic.
+*   **JSON Format**: Each Q&A pair must be a JSON object with exactly three keys:
     *   `"instruction"`: The question (string).
     *   `"input"`: An empty string (`""`).
     *   `"output"`: The answer (string).
-7.  **Output Structure**: The final output MUST be a single, valid JSON list containing these Q&A objects. Ensure the JSON is well-formed.
+*   **Output Structure**: The final output MUST be a single, valid JSON list containing all generated Q&A objects (both factual and summarization types, mixed together). Ensure the JSON is well-formed.
+*   **Total Quantity**: Aim for a total of around {num_questions_per_chunk} Q&A pairs (mostly factual, plus 1-2 summaries). If the text is very dense with facts, you might generate more. If sparse, fewer is acceptable.
 
-Example of desired literalness and granularity:
+**Example of Factual Q&A (desired literalness and granularity):**
 If the text says: "Developed a new module in Python and Java which improved performance by 15%."
-Possible Q&A pairs:
+Possible Factual Q&A pairs:
 [
   {{
     "instruction": "What programming languages were used to develop the new module?",
@@ -198,11 +209,16 @@ Possible Q&A pairs:
     "instruction": "By what percentage did the new module improve performance?",
     "input": "",
     "output": "15%"
-  }},
+  }}
+]
+
+**Example of Summarization Q&A:**
+If a text chunk describes various duties for a role:
+[
   {{
-    "instruction": "What was the outcome of developing the new module in Python and Java?",
+    "instruction": "Summarize the main responsibilities described in this section.",
     "input": "",
-    "output": "It improved performance by 15%."
+    "output": "The main responsibilities include X, Y, and Z."
   }}
 ]
 
@@ -211,7 +227,7 @@ Provided Text Chunk:
 {chunk}
 ---
 
-Valid JSON Output (list of Q&A objects):
+Valid JSON Output (list of Q&A objects, including both factual and 1-2 summarization pairs):
         """
 
         print(f"Sending prompt for chunk {i+1} to Gemini API (first 100 chars of prompt): {prompt[:100]}...")
