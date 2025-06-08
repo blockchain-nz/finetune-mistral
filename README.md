@@ -1,0 +1,141 @@
+# Fine-tuning Mistral 7B with QLoRA for iPad Mini 6 Deployment
+
+This project provides scripts and instructions to fine-tune the Mistral 7B model using QLoRA, quantize it to GGUF format, and prepare it for deployment on an iPad Mini 6 (or other devices compatible with llama.cpp).
+
+The process follows these main steps:
+
+1.  **Environment Setup**: Prepare your Python environment with necessary libraries.
+2.  **PDF to Q&A Dataset**: Extract text from a PDF and convert it into Question & Answer pairs.
+3.  **Prepare Dataset for Training**: Convert the Q&A pairs into a Hugging Face `datasets` object.
+4.  **Fine-tune Mistral 7B with QLoRA**: Run the fine-tuning script.
+5.  **Merge LoRA Weights (Optional)**: Merge the trained LoRA adapters into the base model.
+6.  **Quantize and Deploy**: Convert the model to GGUF format and quantize it for use with `llama.cpp`.
+
+## 1. Environment Setup
+
+Ensure you are on a CUDA-compatible machine with at least 16GB VRAM.
+
+Create a conda environment (or a virtualenv):
+```bash
+conda create -n mistral-qlora python=3.10 -y
+conda activate mistral-qlora
+```
+
+Install necessary packages using the provided `requirements.txt`:
+```bash
+pip install -r requirements.txt
+```
+This includes PyTorch with CUDA support, bitsandbytes, transformers, datasets, peft, accelerate, sentencepiece, scipy, tqdm, trl, and PyMuPDF.
+
+## 2. PDF to Q&A Dataset
+
+Use the `pdf_to_qa.py` script to extract text from your PDF and structure it into Q&A pairs.
+
+```bash
+python pdf_to_qa.py --pdf_path your_doc.pdf --output_json qa_dataset.json
+```
+
+You will likely need to customize the Q&A generation part within the script (e.g., by manually creating pairs or using an LLM API like GPT). The script provides a basic structure.
+
+## 3. Prepare Dataset for Training
+
+Use the `prepare_dataset.py` script to convert the `qa_dataset.json` into the format required for training and save it to disk.
+
+```bash
+python prepare_dataset.py --input_json qa_dataset.json --output_dir mistral_qa_dataset
+```
+
+This will create a directory named `mistral_qa_dataset` containing the processed dataset.
+
+## 4. Fine-tune Mistral 7B with QLoRA
+
+Use the `train_mistral_qlora.py` script to fine-tune the model.
+
+```bash
+python train_mistral_qlora.py \
+    --model_id "mistralai/Mistral-7B-v0.1" \
+    --dataset_path "mistral_qa_dataset" \
+    --output_dir "mistral-qlora-output" \
+    --lora_r 8 \
+    --lora_alpha 16 \
+    --lora_dropout 0.05 \
+    --per_device_train_batch_size 1 \
+    --gradient_accumulation_steps 4 \
+    --num_train_epochs 3 \
+    --learning_rate 2e-4 \
+    --fp16 \
+    --logging_steps 10
+```
+Adjust parameters as needed. Training checkpoints will be saved in `mistral-qlora-output`.
+
+## 5. Merge LoRA Weights (Optional)
+
+If you want to merge the LoRA adapter weights with the base model to create a single model directory, use the `merge_adapters.py` script. Replace `checkpoint-xxx` with the actual checkpoint you want to use from the `mistral-qlora-output` directory (e.g., `checkpoint-100` if you trained for 3 epochs with 100 steps per epoch, it might be the last one).
+
+```bash
+python merge_adapters.py \
+    --base_model_id "mistralai/Mistral-7B-v0.1" \
+    --adapter_path "mistral-qlora-output/checkpoint-xxx" \
+    --output_dir "merged-mistral-qlora"
+```
+
+This will save the merged model and tokenizer to the `merged-mistral-qlora` directory.
+
+## 6. Quantize and Deploy to iPad Mini 6 (via llama.cpp)
+
+### A. Convert to GGUF for llama.cpp
+
+First, clone the `llama.cpp` repository:
+```bash
+git clone https://github.com/ggerganov/llama.cpp
+cd llama.cpp
+```
+
+Next, convert your fine-tuned (and optionally merged) model to GGUF format. If you merged the adapters, `model_dir` will be `merged-mistral-qlora`. If you did not merge and want to convert a specific checkpoint that PEFT can load, you might need to adjust the `convert.py` script or ensure it can load adapter weights (often, conversion scripts expect a fully merged model). The user's instructions imply using the merged model.
+
+Make sure your `merged-mistral-qlora` directory (or the checkpoint directory if not merging and `convert.py` supports it) is accessible. The original instructions used `./merged-mistral-qlora` relative to the `llama.cpp` directory. You might need to adjust paths. For example, if `llama.cpp` is in the same parent directory as your fine-tuning project:
+
+```bash
+# Inside llama.cpp directory
+python3 convert.py ../merged-mistral-qlora --outfile ../mistral-7b-merged-f16.gguf --outtype f16
+```
+*(Note: The original instructions had `--model_dir ./merged-mistral-qlora` and `--outfile mistral-7b-gguf`. The `convert.py` script arguments can vary; consult `python3 convert.py --help`. The `--outtype f16` is common for an intermediate float16 GGUF model before quantization.)*
+
+### B. Quantize the GGUF Model
+
+Now, quantize the float16 GGUF model to a smaller format like Q4_K_M. Compile `llama.cpp` if you haven't already (e.g., `make`).
+
+```bash
+# Inside llama.cpp directory
+./quantize ../mistral-7b-merged-f16.gguf ../mistral-7b-merged.Q4_K_M.gguf Q4_K_M
+```
+This creates `mistral-7b-merged.Q4_K_M.gguf`, which is the model file you'll use on the iPad.
+
+### C. Use with llama.cpp on iPad
+
+1.  Transfer the `mistral-7b-merged.Q4_K_M.gguf` file to your iPad Mini 6.
+2.  Use an application that supports `llama.cpp` models in GGUF format. Examples include:
+    *   **MLC Chat**: Developed by the MLC community, often supports various GGUF models.
+    *   **LocalAI mobile client**: If available and supports GGUF.
+    *   **Custom App**: Compile `llama.cpp` into a custom iOS application. There are Swift wrappers and community projects like `ios-ggml-clients` that can serve as starting points.
+
+Place the `.gguf` model file in the app's accessible storage directory as required by the specific app.
+
+> **Tip**: The Q4_K_M quantization is a good balance for reducing memory usage and maintaining performance for real-time responses on mobile devices.
+
+## Project Structure
+
+```
+.
+├── README.md
+├── requirements.txt
+├── pdf_to_qa.py
+├── prepare_dataset.py
+├── train_mistral_qlora.py
+├── merge_adapters.py
+├── your_doc.pdf             # (You provide this)
+├── qa_dataset.json          # (Generated by pdf_to_qa.py)
+├── mistral_qa_dataset/      # (Generated by prepare_dataset.py)
+├── mistral-qlora-output/    # (Generated by train_mistral_qlora.py)
+└── merged-mistral-qlora/    # (Generated by merge_adapters.py)
+```
