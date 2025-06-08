@@ -168,66 +168,75 @@ def generate_qa_pairs(text_content: str, num_questions_per_chunk: int = 5) -> li
 
         # You can customize this prompt extensively.
         # The num_questions_per_chunk parameter is a general guideline for the total output.
-        # The prompt below aims for exhaustive factual Q&A and then a few summaries.
+        # The prompt below aims for exhaustive factual Q&A and then a few summaries,
+        # guided by common CV sections.
         prompt = f"""
-Your task is to generate two types of question-answer pairs from the provided text chunk:
-1.  **Detailed Factual Q&A Pairs**: Convert every distinct piece of factual information into a Q&A pair.
-2.  **Summarization Q&A Pairs**: Create 1-2 Q&A pairs where the question asks for a summary of the main topics or key aspects of the text chunk, and the answer is that summary.
+Your task is to act as a meticulous data extractor specializing in resumes and CVs. From the provided text chunk, you must generate two types of question-answer pairs:
+1.  **Detailed Factual Q&A Pairs**: Based on common CV sections, extract specific, granular details.
+2.  **Summarization Q&A Pairs**: If the chunk lends itself to it, create 1 (max 2) Q&A pairs where the question asks for a summary of a significant part of the chunk (e.g., a whole job experience if it fits, or a summary of skills).
 
 These pairs will be used for fine-tuning a large language model.
 
-**Instructions for Detailed Factual Q&A Generation:**
-*   **Extract EVERY Fact**: This includes specific numbers, names, titles, dates, technical terms, tools, technologies, methodologies, specific responsibilities, individual achievements, project details, programming languages mentioned, software versions, etc. If it's a stated fact in the text, try to make it a Q&A pair.
-*   **Literal and Granular**: Be very literal. Do not generalize. If a sentence contains multiple facts, create multiple Q&A pairs. Prefer shorter, focused questions and answers that pinpoint specific details.
-*   **Comprehensive Coverage**: Your goal is to leave no factual stone unturned within the provided text chunk for this type of Q&A. Generate as many factual Q&A pairs as there are distinct facts.
+**CV Section-Guided Instructions for Detailed Factual Q&A Generation:**
 
-**Instructions for Summarization Q&A Generation:**
-*   **Identify Main Themes**: Based on the text chunk, identify 1 or 2 main themes, topics, or sections that could be summarized.
-*   **Formulate Summary Question**: Create a question that asks for a summary of that theme/topic (e.g., "Can you summarize the key responsibilities mentioned in this section?", "What is the main focus of this paragraph regarding project X?").
-*   **Generate Concise Summary**: The answer should be a concise summary of that theme/topic, derived from the text chunk.
+*   **If Personal Details are present (Name, Contact Info, Links):**
+    *   Q&A for full name.
+    *   Q&A for email address.
+    *   Q&A for phone number.
+    *   Q&A for LinkedIn profile URL (if present).
+    *   Q&A for GitHub profile URL (if present).
+    *   Q&A for personal website/portfolio URL (if present).
+*   **If a Professional Summary/Objective/Personal Statement is present:**
+    *   Q&A for the core message or years of experience mentioned.
+    *   Q&A for specific key skills or attributes highlighted in the summary.
+*   **For EACH Work Experience entry found in the chunk:**
+    *   Q&A for Company Name.
+    *   Q&A for Job Title/Role.
+    *   Q&A for Start Date (month/year if available).
+    *   Q&A for End Date (month/year if available, or "Present").
+    *   Multiple Q&A pairs for distinct Key Responsibilities (be specific).
+    *   Multiple Q&A pairs for distinct Achievements or Projects mentioned under that role (be specific).
+    *   Q&A for specific Technologies, Tools, or Methodologies used in that role.
+*   **For EACH Education entry found in the chunk:**
+    *   Q&A for Institution Name.
+    *   Q&A for Degree Name (e.g., Master of Science, Bachelor of Arts).
+    *   Q&A for Major/Field of Study.
+    *   Q&A for Graduation Date (or expected graduation date).
+    *   Q&A for any specific honors, thesis, or relevant coursework mentioned.
+*   **If a Skills section is present (or skills mentioned throughout):**
+    *   Multiple Q&A pairs for different categories of skills (e.g., Programming Languages, Tools, Databases, Methodologies).
+    *   Multiple Q&A pairs for specific skills listed under those categories.
+*   **For EACH Project entry found (if separate from Work Experience):**
+    *   Q&A for Project Name/Title.
+    *   Q&A for your role in the project.
+    *   Multiple Q&A pairs for specific details of the project description or goals.
+    *   Q&A for specific Technologies or Tools used.
+    *   Q&A for project outcomes or impact, if mentioned.
+*   **For EACH Certification entry found:**
+    *   Q&A for Certification Name.
+    *   Q&A for Issuing Organization.
+    *   Q&A for Date Obtained (if available).
+*   **If Hobbies/Interests are mentioned:**
+    *   Q&A for specific hobbies or interests listed.
+
+**Instructions for Summarization Q&A Generation (1-2 pairs per chunk, if applicable):**
+*   Based on the overall content of the chunk, identify a significant section (like a complete job description if it fits, or a summary of all skills presented) that could be summarized.
+*   Formulate a question asking for a summary of that section (e.g., "Summarize the work experience at [Company X] as described in this text.", "Provide a summary of the AI/ML skills listed here.").
+*   The answer should be a concise summary of that section, derived from the text chunk.
 
 **General Instructions for ALL Q&A Pairs:**
-*   **Clear Questions**: All questions should be clear, unambiguous, and directly answerable from the provided text.
-*   **Accurate Answers**: All answers must be accurate and directly extracted or inferred from the text. Factual answers should be concise; summary answers should capture the essence of the topic.
-*   **JSON Format**: Each Q&A pair must be a JSON object with exactly three keys:
-    *   `"instruction"`: The question (string).
-    *   `"input"`: An empty string (`""`).
-    *   `"output"`: The answer (string).
-*   **Output Structure**: The final output MUST be a single, valid JSON list containing all generated Q&A objects (both factual and summarization types, mixed together). Ensure the JSON is well-formed.
-*   **Total Quantity**: Aim for a total of around {num_questions_per_chunk} Q&A pairs (mostly factual, plus 1-2 summaries). If the text is very dense with facts, you might generate more. If sparse, fewer is acceptable.
-
-**Example of Factual Q&A (desired literalness and granularity):**
-If the text says: "Developed a new module in Python and Java which improved performance by 15%."
-Possible Factual Q&A pairs:
-[
-  {{
-    "instruction": "What programming languages were used to develop the new module?",
-    "input": "",
-    "output": "Python and Java"
-  }},
-  {{
-    "instruction": "By what percentage did the new module improve performance?",
-    "input": "",
-    "output": "15%"
-  }}
-]
-
-**Example of Summarization Q&A:**
-If a text chunk describes various duties for a role:
-[
-  {{
-    "instruction": "Summarize the main responsibilities described in this section.",
-    "input": "",
-    "output": "The main responsibilities include X, Y, and Z."
-  }}
-]
+*   **Literal and Granular for Facts**: For factual Q&A, be very literal. If a sentence contains multiple facts relevant to the above categories, try to create separate Q&A pairs.
+*   **Comprehensive**: Try to cover all applicable categories and details found in the text chunk.
+*   **JSON Format**: Each Q&A pair must be a JSON object with `"instruction"`, `"input": ""`, and `"output"` keys.
+*   **Output Structure**: The final output MUST be a single, valid JSON list of these objects.
+*   **Total Quantity**: Generate as many Q&A pairs as needed to be comprehensive according to these instructions, particularly for the factual details. Aim for a total of at least {num_questions_per_chunk} Q&A pairs if the content allows, but prioritize thoroughness based on these structured guidelines over hitting an exact number.
 
 Provided Text Chunk:
 ---
 {chunk}
 ---
 
-Valid JSON Output (list of Q&A objects, including both factual and 1-2 summarization pairs):
+Valid JSON Output (list of Q&A objects, including detailed factual pairs based on CV structure and 1-2 summarization pairs):
         """
 
         print(f"Sending prompt for chunk {i+1} to Gemini API (first 100 chars of prompt): {prompt[:100]}...")
@@ -291,7 +300,7 @@ def main():
     parser.add_argument("--pdf_path", type=str, required=True, help="Path to the input PDF file.")
     parser.add_argument("--output_json", type=str, default="qa_dataset.json", help="Path to save the generated Q&A JSON file.")
     parser.add_argument("--num_questions_per_chunk", type=int, default=10, help="Approximate number of detailed, factual Q&A pairs to generate per text chunk.")
-    parser.add_argument("--max_chunk_chars", type=int, default=12000, help="Maximum characters per text chunk sent to Gemini. Smaller chunks may lead to more focused Q&A. Prompts also consume tokens.")
+    parser.add_argument("--max_chunk_chars", type=int, default=9000, help="Maximum characters per text chunk sent to Gemini. Smaller chunks may lead to more focused and detailed Q&A. Prompts also consume tokens.")
 
 
     args = parser.parse_args()
