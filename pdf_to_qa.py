@@ -42,7 +42,7 @@ GENERATION_CONFIG = {
 def extract_pdf_text(pdf_path: str) -> str:
     """Extracts text from all pages of a PDF file."""
     doc = fitz.open(pdf_path)
-    text = """"
+    text = ""
     for page_num in range(len(doc)):
         page = doc.load_page(page_num)
         text += page.get_text()
