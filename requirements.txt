@@ -1,0 +1,24 @@
+# It is recommended to install torch with specific CUDA version first,
+# then install the rest of the packages.
+# Example for CUDA 12.1:
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+# For users who might install this way or in environments where torch is pre-installed:
+torch
+torchvision
+torchaudio
+transformers==4.41.2
+peft==0.11.1
+bitsandbytes==0.42.0
+accelerate==0.27.2
+datasets
+sentencepiece
+scipy
+tqdm
+PyMuPDF
+trl
+google-generativeai
+python-dotenv
+huggingface_hub
+tensorboardX
+requests
