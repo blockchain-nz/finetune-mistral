@@ -117,30 +117,37 @@ def generate_text_with_gemini(prompt: str) -> str | None:
     return None
 
 
-def chunk_text(text: str, max_chars: int = 15000) -> list[str]: # Gemini 1.5 Flash has a large context window, but let's be safe
-    """Splits text into chunks of a maximum character length."""
-    # This is a simple character-based chunking. More sophisticated chunking
-    # (e.g., by sentence or paragraph, or using tokenizers) might be better.
-    # Max input tokens for Gemini 1.5 Flash is very large (e.g., 1M), so raw char count is a rough proxy.
-    # Typical token to char ratio is ~1:4. 15k chars ~ 3.7k tokens.
-    # Let's adjust this depending on average content.
-    # The prompt itself also consumes tokens.
+def chunk_text(text: str, max_chars: int = 500, overlap_chars: int = 50) -> list[str]:
+    """Splits text into chunks of a maximum character length with overlap."""
+    if not text:
+        return []
+    if max_chars <= overlap_chars:
+        raise ValueError("max_chars must be greater than overlap_chars")
 
     chunks = []
-    current_chunk = ""
-    for sentence in text.split(". "): # Basic sentence splitting
-        if len(current_chunk) + len(sentence) + 2 < max_chars: # +2 for ". "
-            current_chunk += sentence + ". "
-        else:
-            if current_chunk: # Add the current chunk if it's not empty
-                chunks.append(current_chunk.strip())
-            current_chunk = sentence + ". " # Start new chunk
-    if current_chunk: # Add the last chunk
-        chunks.append(current_chunk.strip())
+    current_pos = 0
+    text_len = len(text)
+
+    while current_pos < text_len:
+        end_pos = min(current_pos + max_chars, text_len)
+        chunk = text[current_pos:end_pos]
+        chunks.append(chunk)
+
+        # Move current_pos for the next chunk, considering overlap
+        current_pos += (max_chars - overlap_chars)
+
+        # If current_pos has moved past the effective start of the last character due to large overlap,
+        # and we haven't reached the end, ensure we make progress by at least moving past the overlap.
+        # This prevents infinite loops if (max_chars - overlap_chars) is too small or zero.
+        # A simpler way is to ensure max_chars > overlap_chars, which is done by the ValueError above.
+        # If we've added the last possible chunk, break
+        if end_pos == text_len:
+            break
+
     return chunks
 
 
-def generate_qa_pairs(text_content: str, num_questions_per_chunk: int = 5) -> list:
+def generate_qa_pairs(text_content: str, args: argparse.Namespace) -> list:
     """
     Generates Q&A pairs from the extracted text using the Google Gemini API.
 
@@ -160,7 +167,7 @@ def generate_qa_pairs(text_content: str, num_questions_per_chunk: int = 5) -> li
 
     print(f"Preparing to generate Q&A pairs using Gemini model: {MODEL_NAME}")
 
-    text_chunks = chunk_text(text_content)
+    text_chunks = chunk_text(text_content, args.max_chunk_chars, args.overlap_chars)
     print(f"Text divided into {len(text_chunks)} chunk(s).")
 
     for i, chunk in enumerate(text_chunks):
@@ -229,7 +236,7 @@ These pairs will be used for fine-tuning a large language model.
 *   **Comprehensive**: Try to cover all applicable categories and details found in the text chunk.
 *   **JSON Format**: Each Q&A pair must be a JSON object with `"instruction"`, `"input": ""`, and `"output"` keys.
 *   **Output Structure**: The final output MUST be a single, valid JSON list of these objects.
-*   **Total Quantity**: Generate as many Q&A pairs as needed to be comprehensive according to these instructions, particularly for the factual details. Aim for a total of at least {num_questions_per_chunk} Q&A pairs if the content allows, but prioritize thoroughness based on these structured guidelines over hitting an exact number.
+*   **Total Quantity**: Generate as many Q&A pairs as needed to be comprehensive according to these instructions, particularly for the factual details. Aim for a total of at least {args.num_questions_per_chunk} Q&A pairs if the content allows, but prioritize thoroughness based on these structured guidelines over hitting an exact number.
 
 Provided Text Chunk:
 ---
@@ -300,7 +307,8 @@ def main():
     parser.add_argument("--pdf_path", type=str, required=True, help="Path to the input PDF file.")
     parser.add_argument("--output_json", type=str, default="qa_dataset.json", help="Path to save the generated Q&A JSON file.")
     parser.add_argument("--num_questions_per_chunk", type=int, default=10, help="Approximate number of detailed, factual Q&A pairs to generate per text chunk.")
-    parser.add_argument("--max_chunk_chars", type=int, default=9000, help="Maximum characters per text chunk sent to Gemini. Smaller chunks may lead to more focused and detailed Q&A. Prompts also consume tokens.")
+    parser.add_argument("--max_chunk_chars", type=int, default=500, help="Maximum characters per text chunk. User specified 500.")
+    parser.add_argument("--overlap_chars", type=int, default=50, help="Number of overlapping characters between consecutive chunks. User specified 50.")
 
 
     args = parser.parse_args()
@@ -325,7 +333,7 @@ GOOGLE_API_KEY="YOUR_ACTUAL_API_KEY" """) # Python multiline string
     print(f"Successfully extracted text. Total characters: {len(extracted_text)}")
 
     # Generate Q&A pairs using Gemini
-    qa_data = generate_qa_pairs(extracted_text, args.num_questions_per_chunk)
+    qa_data = generate_qa_pairs(extracted_text, args)
 
     # Save Q&A pairs to JSON
     try:

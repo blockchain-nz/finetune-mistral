@@ -128,15 +128,32 @@ The `pdf_to_qa.py` script extracts text from your PDF and uses the Google Gemini
 
 **Prerequisites**: Ensure you have set up your `GOOGLE_API_KEY` in a `.env` file as described in the "Environment Setup" section.
 
-To run the script (defaulting to approximately 10 Q&A pairs per chunk and a max chunk size of 9000 characters):
+To run the script (defaulting to approximately 10 Q&A pairs per chunk, a max chunk size of **500 characters**, and an overlap of **50 characters** between chunks):
 ```bash
 python pdf_to_qa.py --pdf_path your_doc.pdf --output_json qa_dataset.json
 ```
-The script now attempts to extract Q&A pairs exhaustively from each text chunk based on the content. The `--num_questions_per_chunk` (default: 10) argument serves as a user guideline for the desired output quantity per chunk. You can also adjust the maximum character size for each chunk using `--max_chunk_chars` (default: 9000). Smaller chunk sizes might yield more focused Q&A for very dense documents.
+The script now attempts to extract Q&A pairs exhaustively from each text chunk based on the content. It uses a small chunk size and overlap by default to try and capture as much detail as possible:
+*   `--num_questions_per_chunk` (default: 10): Serves as a user guideline for the desired output quantity per chunk.
+*   `--max_chunk_chars` (default: 500): Sets the maximum character size for each chunk.
+*   `--overlap_chars` (default: 50): Sets the number of overlapping characters between consecutive chunks.
+Using very small chunks with overlap aims to ensure details aren't missed at boundaries, but has significant implications (see warning below).
 Example with custom settings:
 ```bash
-python pdf_to_qa.py --pdf_path your_doc.pdf --output_json qa_dataset.json --num_questions_per_chunk 15 --max_chunk_chars 10000
+python pdf_to_qa.py --pdf_path your_doc.pdf --output_json qa_dataset.json --num_questions_per_chunk 5 --max_chunk_chars 2000 --overlap_chars 200
 ```
+
+**⚠️ Important Considerations for Small Chunk Sizes & Overlap:**
+
+The default settings for `--max_chunk_chars` (500) and `--overlap_chars` (50) are designed for maximum granularity and to avoid missing details at chunk boundaries. However, these settings will lead to:
+
+*   **Significantly Increased API Calls**: A document will be split into many more chunks, meaning many more individual calls to the Gemini API.
+*   **Higher Costs**: More API calls will result in higher costs for using the Gemini API.
+*   **Longer Processing Times**: Generating Q&A for a document will take considerably longer.
+*   **Potential for Fragmented Context**: While overlap helps, very small chunks might sometimes provide insufficient context for the LLM to generate high-quality or meaningful Q&A for certain types of information that require broader understanding. The detailed CV-specific prompt attempts to mitigate this by looking for structure, but effectiveness can vary.
+*   **Increased Redundancy**: Overlapping chunks will naturally lead to some redundant Q&A pairs being generated from the overlapping text sections. This may require post-processing or simply result in a larger dataset.
+
+It is crucial to be mindful of these trade-offs. You may need to experiment with larger values for `--max_chunk_chars` and `--overlap_chars` (e.g., 2000-5000 for `max_chars` and 100-500 for `overlap_chars`) if the default settings result in excessive processing time, cost, or if the Q&A quality from very small snippets is suboptimal for your specific document.
+
 While the Gemini API provides a strong starting point, it's highly recommended to review and curate the generated Q&A pairs for quality and relevance. The script includes an enhanced retry mechanism with increasing backoff times to handle transient API issues, attempting up to 9 times before failing on a specific text chunk.
 The script now uses a highly structured internal prompt specifically designed for CVs/resumes. This prompt guides Gemini to identify common CV sections (like Work Experience, Education, Skills) and extract detailed factual Q&A pairs for specific attributes within those sections, in addition to generating 1-2 overall summary Q&A pairs for the chunk. While this aims for maximum detail, you can further refine this internal prompt (located in the `generate_qa_pairs` function within `pdf_to_qa.py`) if you have very specific Q&A style requirements or observe particular patterns in Gemini's output for your documents. Experimenting with `--num_questions_per_chunk` and `--max_chunk_chars` can also help optimize the results for your needs.
 Generating both types of Q&A pairs (factual and summarization) aims to create a richer dataset. This helps the fine-tuned model to not only recall specific details but also to provide summaries when explicitly prompted (e.g., 'Summarize the key points of section X').
