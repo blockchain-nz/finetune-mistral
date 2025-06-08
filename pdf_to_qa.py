@@ -168,24 +168,50 @@ def generate_qa_pairs(text_content: str, num_questions_per_chunk: int = 5) -> li
 
         # You can customize this prompt extensively.
         prompt = f"""
-Based on the following text, generate exactly {num_questions_per_chunk} question and answer pairs suitable for fine-tuning a large language model.
-The questions should be distinct and cover different aspects of the text.
-Each pair should have an "instruction" (the question) and an "output" (the answer).
-The "input" field should be empty.
+Your task is to generate a comprehensive set of detailed, factual question-answer pairs from the provided text chunk. These pairs will be used for fine-tuning a large language model to answer specific questions about the original document.
 
-Format the output as a valid JSON list of objects, where each object has "instruction", "input", and "output" keys.
-Example:
+Instructions for Q&A Generation:
+1.  **Focus on Facts and Details**: Extract specific information, facts, figures, names, dates, technical terms, specific roles, responsibilities, achievements, project details, tool names, methodologies, etc. Avoid overly general or summary-style questions.
+2.  **Comprehensive Coverage**: Attempt to create Q&A pairs that cover as many different details and aspects of the provided text chunk as possible.
+3.  **Quantity**: Generate as many distinct and relevant Q&A pairs as you can identify from the text, aiming for approximately {num_questions_per_chunk} pairs for this chunk. If the text is dense with information, you might generate more; if it's sparse, fewer is acceptable. The goal is thoroughness.
+4.  **Clear Questions**: Questions should be clear, unambiguous, and directly answerable from the provided text.
+5.  **Concise and Accurate Answers**: Answers should be concise, accurate, and directly extracted or inferred from the text.
+6.  **Format**: Each pair must be a JSON object with three keys:
+    *   `"instruction"`: The question (string).
+    *   `"input"`: An empty string (`""`).
+    *   `"output"`: The answer (string).
+7.  **Output Structure**: The final output must be a single, valid JSON list containing these Q&A objects.
+
+Example of desired granularity and format:
 [
-  {{"instruction": "What is the main subject?", "input": "", "output": "The main subject is..."}},
-  {{"instruction": "Explain concept X.", "input": "", "output": "Concept X is..."}}
+  {{
+    "instruction": "What specific version of CUDA is mentioned for PyTorch installation on Ubuntu?",
+    "input": "",
+    "output": "CUDA 12.1 is mentioned as an example for PyTorch installation on Ubuntu."
+  }},
+  {{
+    "instruction": "What is the recommended way to install the NVIDIA CUDA Toolkit on Ubuntu?",
+    "input": "",
+    "output": "It's often best to install the NVIDIA CUDA Toolkit system-wide via NVIDIA's official repositories or installers on Ubuntu."
+  }},
+  {{
+    "instruction": "What command is used to verify the CUDA installation and version on Ubuntu?",
+    "input": "",
+    "output": "nvcc --version"
+  }},
+  {{
+    "instruction": "What is the purpose of the 'Build Tools for Visual Studio' on Windows in this context?",
+    "input": "",
+    "output": "Some Python packages, including bitsandbytes, may require C++ build tools like 'Build Tools for Visual Studio' for compilation on Windows."
+  }}
 ]
 
-Text:
+Provided Text Chunk:
 ---
 {chunk}
 ---
 
-JSON Output:
+Valid JSON Output (list of Q&A objects):
         """
 
         print(f"Sending prompt for chunk {i+1} to Gemini API (first 100 chars of prompt): {prompt[:100]}...")
@@ -248,7 +274,7 @@ def main():
     parser = argparse.ArgumentParser(description="Extract text from PDF and generate Q&A pairs using Google Gemini API.")
     parser.add_argument("--pdf_path", type=str, required=True, help="Path to the input PDF file.")
     parser.add_argument("--output_json", type=str, default="qa_dataset.json", help="Path to save the generated Q&A JSON file.")
-    parser.add_argument("--num_questions_per_chunk", type=int, default=5, help="Number of questions to attempt to generate per text chunk.")
+    parser.add_argument("--num_questions_per_chunk", type=int, default=10, help="Approximate number of detailed, factual Q&A pairs to generate per text chunk.")
     parser.add_argument("--max_chunk_chars", type=int, default=15000, help="Maximum characters per text chunk sent to Gemini (prompts also consume tokens).")
 
 
