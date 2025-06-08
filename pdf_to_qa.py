@@ -48,38 +48,72 @@ def extract_pdf_text(pdf_path: str) -> str:
         text += page.get_text()
     return text
 
-def generate_text_with_gemini(prompt: str, retries: int = 3, delay: int = 5) -> str | None:
-    """Generates text using the Gemini API with retry logic."""
+def generate_text_with_gemini(prompt: str) -> str | None:
+    """
+    Generates text using the Gemini API with a more robust retry mechanism.
+    - Initial 3 retries with shorter delays.
+    - Subsequent 6 retries (total 9) with longer delays.
+    - Aborts if 9 consecutive failures occur for a single prompt.
+    """
     model = genai.GenerativeModel(
         MODEL_NAME,
         safety_settings=SAFETY_SETTINGS,
         generation_config=GENERATION_CONFIG
     )
-    for attempt in range(retries):
-        try:
-            response = model.generate_content(prompt)
-            # Check for empty or blocked response
-            if not response.parts:
-                if response.prompt_feedback.block_reason:
-                    print(f"WARN: Prompt blocked by API. Reason: {response.prompt_feedback.block_reason}")
-                    return None # Or raise an error
-                else:
-                    print("WARN: Received an empty response from Gemini API.")
-                    return None # Or raise an error
 
-            # Assuming the response contains text in its parts
-            # Concatenate text from all parts if multiple exist
-            generated_text = "".join(part.text for part in response.parts if hasattr(part, 'text'))
-            return generated_text
+    max_total_attempts = 9
+    consecutive_failures = 0
+
+    # Delays in seconds: first 3 attempts have shorter delays, next 6 have longer ones.
+    # Beyond the explicitly defined, it will use the last value for remaining attempts up to max_total_attempts.
+    short_delay = 10  # seconds for first 3 attempts
+    long_delay = 45   # seconds for attempts 4-9
+
+    current_delay_tier = [short_delay] * 3 + [long_delay] * (max_total_attempts - 3)
+
+    for attempt in range(max_total_attempts):
+        try:
+            print(f"Gemini API call attempt {attempt + 1}/{max_total_attempts}...")
+            response = model.generate_content(prompt)
+
+            # Successful response, reset consecutive failures and return text
+            if response.parts:
+                consecutive_failures = 0 # Reset on success
+                generated_text = "".join(part.text for part in response.parts if hasattr(part, 'text'))
+                return generated_text
+
+            # Handle cases where response.parts is empty (e.g. blocked prompt)
+            if response.prompt_feedback and response.prompt_feedback.block_reason:
+                print(f"WARN: Prompt blocked by API. Reason: {response.prompt_feedback.block_reason}. This counts as a failure for retry logic.")
+                # This is treated as a failure by the API, so we increment failure count
+            else:
+                print("WARN: Received an empty response (no parts) from Gemini API. This counts as a failure for retry logic.")
+
+            # If we reach here, it means response.parts was empty, so it's a failure for this attempt.
+            # Fall through to the exception handling for retry logic, or increment failure count
+            # This specific path (empty parts without an exception) will be handled as a failure below.
 
         except Exception as e:
-            print(f"Error calling Gemini API (attempt {attempt + 1}/{retries}): {e}")
-            if attempt < retries - 1:
-                print(f"Retrying in {delay} seconds...")
-                time.sleep(delay)
-            else:
-                print("Max retries reached. Failed to get response from Gemini API.")
-                return None
+            print(f"Error calling Gemini API (attempt {attempt + 1}/{max_total_attempts}): {e}")
+            # This exception means an operational error occurred, count as failure.
+
+        # If we are here, the attempt failed (either due to exception or empty/blocked response handled above)
+        consecutive_failures += 1
+        print(f"Consecutive API call failures: {consecutive_failures}")
+
+        if consecutive_failures >= max_total_attempts:
+            print(f"CRITICAL: Gemini API call failed {max_total_attempts} consecutive times. Aborting for this prompt.")
+            return None
+
+        # Determine delay for next retry
+        # The current_delay_tier list has enough entries for all attempts up to max_total_attempts
+        delay_seconds = current_delay_tier[attempt]
+
+        print(f"Retrying in {delay_seconds} seconds...")
+        time.sleep(delay_seconds)
+
+    # Should not be reached if logic is correct, but as a fallback:
+    print(f"CRITICAL: Exhausted all {max_total_attempts} attempts for the prompt. Aborting.")
     return None
 
 

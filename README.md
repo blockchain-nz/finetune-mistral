@@ -136,7 +136,7 @@ You can adjust the number of questions generated per text chunk and the chunk si
 ```bash
 python pdf_to_qa.py --pdf_path your_doc.pdf --output_json qa_dataset.json --num_questions_per_chunk 10 --max_chunk_chars 20000
 ```
-While the Gemini API provides a strong starting point, it's highly recommended to review and curate the generated Q&A pairs for quality and relevance.
+While the Gemini API provides a strong starting point, it's highly recommended to review and curate the generated Q&A pairs for quality and relevance. The script includes an enhanced retry mechanism with increasing backoff times to handle transient API issues, attempting up to 9 times before failing on a specific text chunk.
 **Crucially, the quality, accuracy, and relevance of your Q&A pairs will significantly impact the fine-tuned model's performance.** Refer to the comments within `pdf_to_qa.py` for more detailed advice on dataset creation.
 
 ## 3. Prepare Dataset for Training
