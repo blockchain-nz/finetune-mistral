@@ -9,6 +9,9 @@ import time
 # Load environment variables from .env file
 load_dotenv()
 
+# Create output directory if it doesn't exist
+os.makedirs("output", exist_ok=True)
+
 # --- Configuration for Gemini API ---
 # Ensure GOOGLE_API_KEY is set in your .env file
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -42,7 +45,7 @@ GENERATION_CONFIG = {
 def extract_pdf_text(pdf_path: str) -> str:
     """Extracts text from all pages of a PDF file."""
     doc = fitz.open(pdf_path)
-    text = """"
+    text = ""
     for page_num in range(len(doc)):
         page = doc.load_page(page_num)
         text += page.get_text()
@@ -305,7 +308,7 @@ Valid JSON Output (list of Q&A objects, including detailed factual pairs based o
 def main():
     parser = argparse.ArgumentParser(description="Extract text from PDF and generate Q&A pairs using Google Gemini API.")
     parser.add_argument("--pdf_path", type=str, required=True, help="Path to the input PDF file.")
-    parser.add_argument("--output_json", type=str, default="qa_dataset.json", help="Path to save the generated Q&A JSON file.")
+    parser.add_argument("--output_json", type=str, default="output/qa_dataset.json", help="Path to save the generated Q&A JSON file.")
     parser.add_argument("--num_questions_per_chunk", type=int, default=10, help="Approximate number of detailed, factual Q&A pairs to generate per text chunk.")
     parser.add_argument("--max_chunk_chars", type=int, default=500, help="Maximum characters per text chunk. User specified 500.")
     parser.add_argument("--overlap_chars", type=int, default=50, help="Number of overlapping characters between consecutive chunks. User specified 50.")

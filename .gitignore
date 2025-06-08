@@ -1,0 +1,22 @@
+# Ignore output directory
+output/
+
+# Ignore all JSON files (as a backup)
+*.json
+
+source/
+.env
+.env.example
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+.vscode/
+.idea/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ruff_cache/
+.DS_Store

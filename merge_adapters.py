@@ -2,15 +2,22 @@ import argparse
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
+import os
+
+# Create output directory if it doesn't exist
+os.makedirs("output", exist_ok=True)
 
 def main():
-    parser = argparse.ArgumentParser(description="Merge LoRA adapters with a base model.")
-    parser.add_argument("--base_model_id", type=str, required=True, help="Hugging Face model ID of the base model (e.g., 'mistralai/Mistral-7B-v0.1').")
-    parser.add_argument("--adapter_path", type=str, required=True, help="Path to the trained LoRA adapter checkpoint directory (e.g., 'mistral-qlora-output/checkpoint-xxx').")
-    parser.add_argument("--output_dir", type=str, required=True, help="Directory to save the merged model and tokenizer.")
+    parser = argparse.ArgumentParser(description="Merge LoRA adapter weights with base model")
+    parser.add_argument("--base_model_id", type=str, required=True, help="Base model ID from Hugging Face Hub")
+    parser.add_argument("--adapter_path", type=str, required=True, help="Path to the LoRA adapter weights")
+    parser.add_argument("--output_dir", type=str, default="output/merged-mistral-qlora", help="Directory to save the merged model and tokenizer")
     parser.add_argument("--torch_dtype", type=str, default="torch.float16", help="Torch dtype for loading the base model (e.g., 'torch.float16', 'torch.bfloat16', 'torch.float32').")
 
     args = parser.parse_args()
+
+    # Create output directory if it doesn't exist
+    os.makedirs(args.output_dir, exist_ok=True)
 
     # Resolve torch_dtype string to actual torch.dtype
     dtype_map = {

@@ -11,8 +11,8 @@ def load_qa_from_json(json_path: str) -> list:
 
 def main():
     parser = argparse.ArgumentParser(description="Prepare Q&A dataset for Hugging Face training.")
-    parser.add_argument("--input_json", type=str, default="qa_dataset.json", help="Path to the input Q&A JSON file.")
-    parser.add_argument("--output_dir", type=str, default="mistral_qa_dataset", help="Directory to save the Hugging Face dataset.")
+    parser.add_argument("--input_json", type=str, default="output/qa_dataset.json", help="Path to the input Q&A JSON file.")
+    parser.add_argument("--output_dir", type=str, default="output/mistral_qa_dataset", help="Directory to save the processed dataset.")
     parser.add_argument("--test_size", type=float, default=0.1, help="Proportion of the dataset to use for the test split.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for train/test split.")
 
@@ -55,6 +55,14 @@ def main():
         dataset_dict = DatasetDict({'train': dataset})
         print(f"Train set size: {len(dataset_dict['train'])}")
 
+    def clear_input(example):
+        example["input"] = ""
+        return example
+
+    dataset_dict = DatasetDict({
+        split: dataset_dict[split].map(clear_input, batched=False)
+        for split in dataset_dict
+    })
 
     # Save dataset to disk
     try:

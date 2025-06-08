@@ -130,7 +130,7 @@ The `pdf_to_qa.py` script extracts text from your PDF and uses the Google Gemini
 
 To run the script (defaulting to approximately 10 Q&A pairs per chunk, a max chunk size of **500 characters**, and an overlap of **50 characters** between chunks):
 ```bash
-python pdf_to_qa.py --pdf_path your_doc.pdf --output_json qa_dataset.json
+python pdf_to_qa.py --pdf_path source/your_doc.pdf --output_json output/qa_dataset.json
 ```
 The script now attempts to extract Q&A pairs exhaustively from each text chunk based on the content. It uses a small chunk size and overlap by default to try and capture as much detail as possible:
 *   `--num_questions_per_chunk` (default: 10): Serves as a user guideline for the desired output quantity per chunk.
@@ -139,7 +139,7 @@ The script now attempts to extract Q&A pairs exhaustively from each text chunk b
 Using very small chunks with overlap aims to ensure details aren't missed at boundaries, but has significant implications (see warning below).
 Example with custom settings:
 ```bash
-python pdf_to_qa.py --pdf_path your_doc.pdf --output_json qa_dataset.json --num_questions_per_chunk 5 --max_chunk_chars 2000 --overlap_chars 200
+python pdf_to_qa.py --pdf_path source/your_doc.pdf --output_json output/qa_dataset.json --num_questions_per_chunk 5 --max_chunk_chars 2000 --overlap_chars 200
 ```
 
 **⚠️ Important Considerations for Small Chunk Sizes & Overlap:**
@@ -164,12 +164,12 @@ Generating both types of Q&A pairs (factual and summarization) aims to create a 
 Use the `prepare_dataset.py` script to convert the `qa_dataset.json` into the format required for training and save it to disk.
 
 ```bash
-python prepare_dataset.py --input_json qa_dataset.json --output_dir mistral_qa_dataset
+python prepare_dataset.py --input_json output/qa_dataset.json --output_dir output/mistral_qa_dataset
 ```
 
 **Note for CVs/Specific Document Fine-tuning**: If your goal is for the model to learn the entire content of a specific document (like a CV), it's recommended to train on all generated Q&A pairs. You can achieve this by setting `--test_size 0` when running the script:
 ```bash
-python prepare_dataset.py --input_json qa_dataset.json --output_dir mistral_qa_dataset --test_size 0
+python prepare_dataset.py --input_json output/qa_dataset.json --output_dir output/mistral_qa_dataset --test_size 0
 ```
 This ensures all extracted information is used for training, maximizing the model's knowledge of that specific document.
 This will create a directory named `mistral_qa_dataset` containing the processed dataset.
@@ -179,34 +179,23 @@ This will create a directory named `mistral_qa_dataset` containing the processed
 Use the `train_mistral_qlora.py` script to fine-tune the model.
 
 ```bash
-python train_mistral_qlora.py \
-    --model_id "mistralai/Mistral-7B-v0.1" \
-    --dataset_path "mistral_qa_dataset" \
-    --output_dir "mistral-qlora-output" \
-    --lora_r 8 \
-    --lora_alpha 16 \
-    --lora_dropout 0.05 \
-    --per_device_train_batch_size 1 \
-    --gradient_accumulation_steps 4 \
-    --num_train_epochs 3 \
-    --learning_rate 2e-4 \
-    --fp16 \
-    --logging_steps 10
+python train_mistral_qlora.py --model_id "mistralai/Mistral-7B-v0.1" --dataset_path "output/mistral_qa_dataset" --output_dir "output/mistral-qlora-output" --lora_r 8 --lora_alpha 16 --lora_dropout 0.05 --per_device_train_batch_size 1 --gradient_accumulation_steps 4 --num_train_epochs 3 --learning_rate 2e-4 --fp16 --logging_steps 10
+
 ```
-The training script defaults to evaluating the model on the test set each epoch (`--evaluation_strategy "epoch"`). **It is highly recommended to experiment with hyperparameters** like learning rate (`--learning_rate`), LoRA r (`--lora_r`) and alpha (`--lora_alpha`), number of epochs (`--num_train_epochs`), and maximum sequence length (`--max_length`) to achieve optimal results for your specific dataset and task. Training checkpoints will be saved in `mistral-qlora-output`.
+The training script defaults to evaluating the model on the test set each epoch (`--evaluation_strategy "epoch"`). **It is highly recommended to experiment with hyperparameters** like learning rate (`--learning_rate`), LoRA r (`--lora_r`) and alpha (`--lora_alpha`), number of epochs (`--num_train_epochs`), and maximum sequence length (`--max_length`) to achieve optimal results for your specific dataset and task. Training checkpoints will be saved in `output/mistral-qlora-output`.
 
 ## 5. Merge LoRA Weights (Optional)
 
-If you want to merge the LoRA adapter weights with the base model to create a single model directory, use the `merge_adapters.py` script. Replace `checkpoint-xxx` with the actual checkpoint you want to use from the `mistral-qlora-output` directory (e.g., `checkpoint-100` if you trained for 3 epochs with 100 steps per epoch, it might be the last one).
+If you want to merge the LoRA adapter weights with the base model to create a single model directory, use the `merge_adapters.py` script. Replace `checkpoint-xxx` with the actual checkpoint you want to use from the `output/mistral-qlora-output` directory (e.g., `checkpoint-100` if you trained for 3 epochs with 100 steps per epoch, it might be the last one).
 
 ```bash
 python merge_adapters.py \
     --base_model_id "mistralai/Mistral-7B-v0.1" \
-    --adapter_path "mistral-qlora-output/checkpoint-xxx" \
-    --output_dir "merged-mistral-qlora"
+    --adapter_path "output/mistral-qlora-output/checkpoint-xxx" \
+    --output_dir "output/merged-mistral-qlora"
 ```
 
-This will save the merged model and tokenizer to the `merged-mistral-qlora` directory.
+This will save the merged model and tokenizer to the `output/merged-mistral-qlora` directory.
 
 ## 6. Quantize and Deploy to iPad Mini 6 (via llama.cpp)
 
@@ -218,13 +207,13 @@ git clone https://github.com/ggerganov/llama.cpp
 cd llama.cpp
 ```
 
-Next, convert your fine-tuned (and optionally merged) model to GGUF format. If you merged the adapters, `model_dir` will be `merged-mistral-qlora`. If you did not merge and want to convert a specific checkpoint that PEFT can load, you might need to adjust the `convert.py` script or ensure it can load adapter weights (often, conversion scripts expect a fully merged model). The user's instructions imply using the merged model.
+Next, convert your fine-tuned (and optionally merged) model to GGUF format. If you merged the adapters, `model_dir` will be `output/merged-mistral-qlora`. If you did not merge and want to convert a specific checkpoint that PEFT can load, you might need to adjust the `convert.py` script or ensure it can load adapter weights (often, conversion scripts expect a fully merged model). The user's instructions imply using the merged model.
 
-Make sure your `merged-mistral-qlora` directory (or the checkpoint directory if not merging and `convert.py` supports it) is accessible. The original instructions used `./merged-mistral-qlora` relative to the `llama.cpp` directory. You might need to adjust paths. For example, if `llama.cpp` is in the same parent directory as your fine-tuning project:
+Make sure your `output/merged-mistral-qlora` directory (or the checkpoint directory if not merging and `convert.py` supports it) is accessible. The original instructions used `./merged-mistral-qlora` relative to the `llama.cpp` directory. You might need to adjust paths. For example, if `llama.cpp` is in the same parent directory as your fine-tuning project:
 
 ```bash
 # Inside llama.cpp directory
-python3 convert.py ../merged-mistral-qlora --outfile ../mistral-7b-merged-f16.gguf --outtype f16
+python3 convert.py ../output/merged-mistral-qlora --outfile ../mistral-7b-merged-f16.gguf --outtype f16
 ```
 *(Note: The original instructions had `--model_dir ./merged-mistral-qlora` and `--outfile mistral-7b-gguf`. The `convert.py` script arguments can vary; consult `python3 convert.py --help`. The `--outtype f16` is common for an intermediate float16 GGUF model before quantization.)*
 
@@ -262,8 +251,9 @@ Place the `.gguf` model file in the app's accessible storage directory as requir
 ├── train_mistral_qlora.py
 ├── merge_adapters.py
 ├── your_doc.pdf             # (You provide this)
-├── qa_dataset.json          # (Generated by pdf_to_qa.py)
-├── mistral_qa_dataset/      # (Generated by prepare_dataset.py)
-├── mistral-qlora-output/    # (Generated by train_mistral_qlora.py)
-└── merged-mistral-qlora/    # (Generated by merge_adapters.py)
+├── output/                  # (Generated files)
+│   ├── qa_dataset.json     # (Generated by pdf_to_qa.py)
+│   ├── mistral_qa_dataset/ # (Generated by prepare_dataset.py)
+│   ├── mistral-qlora-output/ # (Generated by train_mistral_qlora.py)
+│   └── merged-mistral-qlora/ # (Generated by merge_adapters.py)
 ```
