@@ -128,16 +128,17 @@ The `pdf_to_qa.py` script extracts text from your PDF and uses the Google Gemini
 
 **Prerequisites**: Ensure you have set up your `GOOGLE_API_KEY` in a `.env` file as described in the "Environment Setup" section.
 
-To run the script:
+To run the script (defaulting to approximately 10 Q&A pairs per chunk and a max chunk size of 12000 characters):
 ```bash
-python pdf_to_qa.py --pdf_path your_doc.pdf --output_json qa_dataset.json --num_questions_per_chunk 10
+python pdf_to_qa.py --pdf_path your_doc.pdf --output_json qa_dataset.json
 ```
-You can adjust the number of questions generated per text chunk and the chunk size using `--num_questions_per_chunk` and `--max_chunk_chars` arguments. For example:
+The script now attempts to extract Q&A pairs exhaustively from each text chunk based on the content. The `--num_questions_per_chunk` (default: 10) argument serves as a user guideline for the desired output quantity per chunk. You can also adjust the maximum character size for each chunk using `--max_chunk_chars` (default: 12000). Smaller chunk sizes might yield more focused Q&A for very dense documents.
+Example with custom settings:
 ```bash
-python pdf_to_qa.py --pdf_path your_doc.pdf --output_json qa_dataset.json --num_questions_per_chunk 10 --max_chunk_chars 20000
+python pdf_to_qa.py --pdf_path your_doc.pdf --output_json qa_dataset.json --num_questions_per_chunk 15 --max_chunk_chars 10000
 ```
 While the Gemini API provides a strong starting point, it's highly recommended to review and curate the generated Q&A pairs for quality and relevance. The script includes an enhanced retry mechanism with increasing backoff times to handle transient API issues, attempting up to 9 times before failing on a specific text chunk.
-The script uses a detailed prompt to guide Gemini towards generating factual and comprehensive Q&A pairs. For specific types of documents or desired Q&A styles, you might achieve better results by further customizing the prompt within the `generate_qa_pairs` function in `pdf_to_qa.py`. Experimentation with both the `--num_questions_per_chunk` argument and the internal prompt can help optimize results.
+The script uses a very detailed internal prompt to instruct Gemini to be as exhaustive and literal as possible in extracting factual Q&A pairs from each text chunk. While this aims for maximum detail, you can further refine this internal prompt (located in the `generate_qa_pairs` function within `pdf_to_qa.py`) if you have very specific Q&A style requirements or observe particular patterns in Gemini's output for your documents. Experimenting with `--num_questions_per_chunk` and `--max_chunk_chars` can also help optimize the results for your needs.
 **Crucially, the quality, accuracy, and relevance of your Q&A pairs will significantly impact the fine-tuned model's performance.** Refer to the comments within `pdf_to_qa.py` for more detailed advice on dataset creation.
 
 ## 3. Prepare Dataset for Training
