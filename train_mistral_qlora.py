@@ -50,6 +50,9 @@ def main():
     parser.add_argument("--lora_target_modules", nargs='+', default=["q_proj", "k_proj", "v_proj", "o_proj"], help="Modules to apply LoRA to.")
 
     # Training arguments
+    # Note: Many of these arguments are crucial for successful fine-tuning.
+    # Experiment with learning_rate, num_train_epochs, lora_r, lora_alpha,
+    # and batch size settings to find the optimal configuration for your dataset and task.
     parser.add_argument("--per_device_train_batch_size", type=int, default=1, help="Batch size per device during training.")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=4, help="Number of updates steps to accumulate before performing a backward/update pass.")
     parser.add_argument("--num_train_epochs", type=int, default=3, help="Total number of training epochs to perform.")
@@ -57,8 +60,10 @@ def main():
     parser.add_argument("--fp16", action='store_true', default=True, help="Whether to use 16-bit (mixed) precision training.")
     parser.add_argument("--logging_steps", type=int, default=10, help="Log every X updates steps.")
     parser.add_argument("--save_strategy", type=str, default="epoch", help="Save strategy to adopt during training (e.g., 'no', 'epoch', 'steps').")
-    parser.add_argument("--evaluation_strategy", type=str, default="no", help="Evaluation strategy to adopt during training (e.g., 'no', 'epoch', 'steps').")
-    parser.add_argument("--max_length", type=int, default=1024, help="Max sequence length for tokenization.")
+    # Changed default from "no" to "epoch" to encourage evaluation.
+    # The test set created by prepare_dataset.py will be used for evaluation if present.
+    parser.add_argument("--evaluation_strategy", type=str, default="epoch", help="Evaluation strategy to adopt during training (e.g., 'no', 'epoch', 'steps').")
+    parser.add_argument("--max_length", type=int, default=1024, help="Max sequence length for tokenization. Adjust based on your data and available VRAM. Longer sequences require more memory.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility.")
 
     args = parser.parse_args()

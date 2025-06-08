@@ -14,18 +14,34 @@ def extract_pdf_text(pdf_path: str) -> str:
 def generate_qa_pairs(text_content: str) -> list:
     """
     Generates Q&A pairs from the extracted text.
+
     This is a placeholder function. You'll need to implement
-    your own logic for Q&A generation, which could be:
+    your own logic for Q&A generation. This could involve:
     1. Manual creation of questions and answers.
     2. Using a rule-based system if your text has a very specific structure.
     3. Using another LLM (e.g., GPT API) to generate questions and answers
        based on chunks of the text.
+
+    IMPORTANT: The quality, accuracy, and relevance of the Q&A pairs
+    generated here are CRITICAL for successful model fine-tuning.
+    Garbage in, garbage out. Take time to create or curate a high-quality dataset
+    that accurately reflects the knowledge and task you want the model to learn.
     """
     print("Extracted text snippet (first 500 chars):")
     print(text_content[:500] + "...")
     print("\nINFO: This is a placeholder for Q&A generation.")
     print("Please edit the `generate_qa_pairs` function in `pdf_to_qa.py`")
     print("to create meaningful Q&A pairs from your PDF content.")
+
+    # ==============================================================================
+    # CRITICAL ADVICE FOR DATASET CREATION:
+    # The success of your fine-tuned model heavily depends on the quality of this dataset.
+    # - Ensure questions are clear and unambiguous.
+    # - Ensure answers are accurate, concise, and directly address the questions.
+    # - The dataset should cover the domain of knowledge you want the model to learn.
+    # - Diverse question types can lead to better generalization.
+    # Consider the quantity of Q&A pairs as well; more high-quality data is generally better.
+    # ==============================================================================
 
     # Placeholder Q&A pairs
     qa_pairs = [

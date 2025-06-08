@@ -115,6 +115,7 @@ python pdf_to_qa.py --pdf_path your_doc.pdf --output_json qa_dataset.json
 ```
 
 You will likely need to customize the Q&A generation part within the script (e.g., by manually creating pairs or using an LLM API like GPT). The script provides a basic structure.
+**Crucially, the quality, accuracy, and relevance of your Q&A pairs will significantly impact the fine-tuned model's performance.** Refer to the comments within `pdf_to_qa.py` for more detailed advice on dataset creation.
 
 ## 3. Prepare Dataset for Training
 
@@ -145,7 +146,7 @@ python train_mistral_qlora.py \
     --fp16 \
     --logging_steps 10
 ```
-Adjust parameters as needed. Training checkpoints will be saved in `mistral-qlora-output`.
+The training script defaults to evaluating the model on the test set each epoch (`--evaluation_strategy "epoch"`). **It is highly recommended to experiment with hyperparameters** like learning rate (`--learning_rate`), LoRA r (`--lora_r`) and alpha (`--lora_alpha`), number of epochs (`--num_train_epochs`), and maximum sequence length (`--max_length`) to achieve optimal results for your specific dataset and task. Training checkpoints will be saved in `mistral-qlora-output`.
 
 ## 5. Merge LoRA Weights (Optional)
 
