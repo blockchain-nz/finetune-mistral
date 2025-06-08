@@ -18,3 +18,5 @@ scipy
 tqdm
 PyMuPDF
 trl
+google-generativeai
+python-dotenv

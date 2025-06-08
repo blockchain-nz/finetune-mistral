@@ -54,7 +54,7 @@ This section provides guidance for setting up your environment on Ubuntu and Win
         ```bash
         pip install -r requirements.txt
         ```
-        Note: `bitsandbytes` should compile smoothly on most Linux distributions with the necessary build tools.
+        This will also install `google-generativeai` for Gemini API access and `python-dotenv` for managing API keys. Note: `bitsandbytes` should compile smoothly on most Linux distributions with the necessary build tools.
 
 ### Windows Setup Details
 
@@ -85,6 +85,7 @@ This section provides guidance for setting up your environment on Ubuntu and Win
     *   If you encounter issues, refer to the official `bitsandbytes` repository for Windows-specific instructions or precompiled binaries: [https://github.com/TimDettmers/bitsandbytes](https://github.com/TimDettmers/bitsandbytes) (check Issues and Releases). Sometimes specific versions are recommended, e.g., `pip install bitsandbytes==0.41.1` (check for the latest compatible version).
 
 5.  **Install Other Dependencies**:
+    *   The `requirements.txt` file also includes `google-generativeai` for Gemini API access and `python-dotenv` for managing API keys.
     *   Install the remaining packages from `requirements.txt`:
         ```bash
         pip install -r requirements.txt
@@ -106,15 +107,36 @@ Save this as a Python script (e.g., `check_env.py`) and run `python check_env.py
 
 This updated section provides more detailed, OS-specific instructions for setting up the Conda environment, installing CUDA, PyTorch, and other dependencies, including notes on potential issues like `bitsandbytes` on Windows.
 
+### Google API Key for Q&A Generation
+
+The `pdf_to_qa.py` script now uses the Google Gemini API to generate question-answer pairs. To use this feature, you need a Google API Key with access to the Gemini API.
+
+1.  **Obtain an API Key**: Visit [https://ai.google.dev/](https://ai.google.dev/) to get your API key.
+2.  **Set up `.env` file**:
+    *   In the root of this project, you'll find a file named `.env.example`.
+    *   Rename or copy this file to `.env`.
+    *   Open `.env` and replace `"YOUR_GEMINI_API_KEY"` with your actual Google API Key.
+    ```
+    # .env file content
+    GOOGLE_API_KEY="YOUR_ACTUAL_GEMINI_API_KEY"
+    ```
+The script will load this key automatically. Keep your `.env` file secure and do not commit it to public repositories.
+
 ## 2. PDF to Q&A Dataset
 
-Use the `pdf_to_qa.py` script to extract text from your PDF and structure it into Q&A pairs.
+The `pdf_to_qa.py` script extracts text from your PDF and uses the Google Gemini API to automatically generate question-answer pairs.
 
+**Prerequisites**: Ensure you have set up your `GOOGLE_API_KEY` in a `.env` file as described in the "Environment Setup" section.
+
+To run the script:
 ```bash
 python pdf_to_qa.py --pdf_path your_doc.pdf --output_json qa_dataset.json
 ```
-
-You will likely need to customize the Q&A generation part within the script (e.g., by manually creating pairs or using an LLM API like GPT). The script provides a basic structure.
+You can adjust the number of questions generated per text chunk and the chunk size using `--num_questions_per_chunk` and `--max_chunk_chars` arguments. For example:
+```bash
+python pdf_to_qa.py --pdf_path your_doc.pdf --output_json qa_dataset.json --num_questions_per_chunk 10 --max_chunk_chars 20000
+```
+While the Gemini API provides a strong starting point, it's highly recommended to review and curate the generated Q&A pairs for quality and relevance.
 **Crucially, the quality, accuracy, and relevance of your Q&A pairs will significantly impact the fine-tuned model's performance.** Refer to the comments within `pdf_to_qa.py` for more detailed advice on dataset creation.
 
 ## 3. Prepare Dataset for Training
@@ -207,6 +229,7 @@ Place the `.gguf` model file in the app's accessible storage directory as requir
 
 ```
 .
+├── .env.example             # Example for API key configuration
 ├── README.md
 ├── requirements.txt
 ├── pdf_to_qa.py
