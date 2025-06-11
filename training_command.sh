@@ -1,0 +1,1 @@
+ python train_mistral_qlora.py --model_id "mistralai/Mistral-7B-Instruct-v0.3" --dataset_path "output/mistral_qa_dataset" --output_dir "output/mistral-qlora-output" --lora_r 64 --lora_alpha 16 --lora_dropout 0.01 --per_device_train_batch_size 3 --gradient_accumulation_steps 4 --num_train_epochs 5 --learning_rate 2e-4 --fp16 --logging_steps 10 --evaluation_strategy no

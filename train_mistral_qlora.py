@@ -14,6 +14,7 @@ from transformers import (
 )
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from email_sender import send_notification
+from transformers import default_data_collator
 
 
 def preprocess_function(examples, tokenizer, max_length=1024):
@@ -62,7 +63,7 @@ def main():
         print("Warning: HF_TOKEN not set. You may not be able to access gated models.")
 
     parser = argparse.ArgumentParser(description="Fine-tune Mistral 7B with QLoRA")
-    parser.add_argument("--model_id", type=str, default="mistralai/Mistral-7B-v0.1")
+    parser.add_argument("--model_id", type=str, default="mistralai/Mistral-7B-Instruct-v0.3")
     parser.add_argument("--dataset_path", type=str, required=True)
     parser.add_argument("--output_dir", type=str, default="output/mistral-qlora-output", help="Directory to save the model and checkpoints")
 
@@ -70,7 +71,7 @@ def main():
     parser.add_argument("--lora_r", type=int, default=8)
     parser.add_argument("--lora_alpha", type=int, default=16)
     parser.add_argument("--lora_dropout", type=float, default=0.05)
-    parser.add_argument("--lora_target_modules", nargs='+', default=["q_proj", "k_proj", "v_proj", "o_proj"])
+    parser.add_argument("--lora_target_modules", nargs='+', default=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"])
 
     parser.add_argument("--per_device_train_batch_size", type=int, default=1)
     parser.add_argument("--gradient_accumulation_steps", type=int, default=4)
@@ -136,11 +137,12 @@ def main():
     if 'test' in tokenized_dataset:
         print(f"Test set size: {len(tokenized_dataset['test'])}")
 
-    data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
+    # data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
 
     print("Setting up TrainingArguments...")
     training_args = TrainingArguments(
         output_dir=args.output_dir,
+        overwrite_output_dir=True,
         per_device_train_batch_size=args.per_device_train_batch_size,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         num_train_epochs=args.num_train_epochs,
@@ -163,7 +165,8 @@ def main():
         train_dataset=tokenized_dataset["train"],
         eval_dataset=tokenized_dataset.get("test"),
         tokenizer=tokenizer,
-        data_collator=data_collator
+        # data_collator=data_collator
+        data_collator=default_data_collator,
     )
 
     print("Starting training...")

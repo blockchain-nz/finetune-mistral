@@ -179,7 +179,8 @@ This will create a directory named `mistral_qa_dataset` containing the processed
 Use the `train_mistral_qlora.py` script to fine-tune the model.
 
 ```bash
-python train_mistral_qlora.py --model_id "mistralai/Mistral-7B-v0.1" --dataset_path "output/mistral_qa_dataset" --output_dir "output/mistral-qlora-output" --lora_r 8 --lora_alpha 16 --lora_dropout 0.05 --per_device_train_batch_size 1 --gradient_accumulation_steps 4 --num_train_epochs 3 --learning_rate 2e-4 --fp16 --logging_steps 10
+python train_mistral_qlora.py --model_id "mistralai/Mistral-7B-Instruct-v0.3" --dataset_path "output/mistral_qa_dataset" --output_dir "output/mistral-qlora-output" --lora_r 8 --lora_alpha 16 --lora_dropout 0.05 --per_device_train_batch_size 1 --gradient_accumulation_steps 4 --num_train_epochs 3 --learning_rate 2e-4 --fp16 --logging_steps 10 --evaluation_strategy no
+
 
 ```
 The training script defaults to evaluating the model on the test set each epoch (`--evaluation_strategy "epoch"`). **It is highly recommended to experiment with hyperparameters** like learning rate (`--learning_rate`), LoRA r (`--lora_r`) and alpha (`--lora_alpha`), number of epochs (`--num_train_epochs`), and maximum sequence length (`--max_length`) to achieve optimal results for your specific dataset and task. Training checkpoints will be saved in `output/mistral-qlora-output`.
@@ -190,7 +191,7 @@ If you want to merge the LoRA adapter weights with the base model to create a si
 
 ```bash
 python merge_adapters.py \
-    --base_model_id "mistralai/Mistral-7B-v0.1" \
+    --base_model_id "mistralai/Mistral-7B-Instruct-v0.3" \
     --adapter_path "output/mistral-qlora-output/checkpoint-xxx" \
     --output_dir "output/merged-mistral-qlora"
 ```

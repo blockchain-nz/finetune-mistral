@@ -3,7 +3,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 from peft import PeftModel
 
 def main():
-    adapter_path = "mistral-qlora-output/final_model"
+    adapter_path = "output/mistral-qlora-output/final_model"
 
     # 1) QLoRA 4-bit config
     quant_config = BitsAndBytesConfig(
@@ -15,7 +15,7 @@ def main():
 
     # 2) Load the 4-bit base model
     base_model = AutoModelForCausalLM.from_pretrained(
-        "mistralai/Mistral-7B-v0.1",
+        "mistralai/Mistral-7B-Instruct-v0.3",
         quantization_config=quant_config,
         device_map="auto",
         trust_remote_code=True,
@@ -26,6 +26,7 @@ def main():
         base_model,      # <- the base model object
         adapter_path,    # <- your adapter folder
         torch_dtype=torch.float16,
+        local_files_only=True,
     )
     model.eval()
 
@@ -37,7 +38,7 @@ def main():
     tokenizer.pad_token = tokenizer.eos_token
 
     # 5) Build prompt exactly as you trained
-    instruction = "What is the Kyle Yu email address?"
+    instruction = "What is the candidate's phone number?"
     prompt = (
         "### Instruction:\n"
         f"{instruction}\n"
@@ -50,7 +51,8 @@ def main():
         out = model.generate(
             input_ids=inputs.input_ids,
             attention_mask=inputs.attention_mask,
-            max_new_tokens=32,
+            max_new_tokens=150,
+            num_beams=5,
             do_sample=False,
             eos_token_id=tokenizer.eos_token_id,
         )
